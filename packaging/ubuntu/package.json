@@ -2,6 +2,11 @@
   "name": "mori-web-desktop",
   "version": "0.2.9",
   "description": "Mori web app desktop wrapper for Ubuntu Linux",
+  "author": {
+    "name": "Mori Project",
+    "email": "noreply@users.noreply.github.com"
+  },
+  "homepage": "https://mori-apis-ai.vercel.app/",
   "main": "main.cjs",
   "private": true,
   "scripts": {

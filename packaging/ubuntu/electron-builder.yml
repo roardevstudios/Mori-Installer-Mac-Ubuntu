@@ -12,5 +12,6 @@ artifactName: Mori-Web-v${version}-linux-${arch}.${ext}
 deb:
   packageName: mori-web
   priority: optional
+  maintainer: Mori Project <noreply@users.noreply.github.com>
   depends:
     - libgtk-3-0
