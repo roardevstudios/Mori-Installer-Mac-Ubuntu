@@ -1,12 +1,12 @@
-name: Build Mori macOS and Linux packages
+name: Package Mori for macOS and Ubuntu
 
-run-name: Build Mori ${{ inputs.version }} for macOS and Ubuntu
+run-name: Package Mori ${{ inputs.version }} for macOS and Ubuntu
 
 on:
   workflow_dispatch:
     inputs:
       version:
-        description: Release version to label the artifacts
+        description: Mori version to put in the package filenames
         required: true
         default: v0.2.9
         type: string
@@ -15,101 +15,67 @@ permissions:
   contents: read
 
 jobs:
-  build:
-    name: Build ${{ matrix.label }}
+  package:
+    name: Package ${{ matrix.platform }}
     strategy:
       fail-fast: false
       matrix:
         include:
           - os: macos-latest
+            platform: macOS
             target: mac
-            label: macOS
-            extensions: dmg,pkg,zip
+            payload: build/macos/Mori.app
+            extension: dmg
           - os: ubuntu-latest
-            target: linux
-            label: Ubuntu/Linux
-            extensions: deb,AppImage,rpm
+            platform: Ubuntu
+            target: ubuntu
+            payload: build/linux/AppDir
+            extension: deb
 
     runs-on: ${{ matrix.os }}
     env:
-      MORI_VERSION: ${{ inputs.version }}
+      MORI_VERSION_INPUT: ${{ inputs.version }}
       MORI_TARGET: ${{ matrix.target }}
 
     steps:
       - name: Check out repository
         uses: actions/checkout@v4
 
-      - name: Set up Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: 22
-
-      - name: Install Linux packaging tools
+      - name: Install Ubuntu package tools
         if: runner.os == 'Linux'
-        run: |
-          sudo apt-get update
-          sudo apt-get install --yes build-essential file libfuse2
+        run: sudo apt-get update && sudo apt-get install --yes dpkg-dev
 
-      - name: Validate version and build configuration
+      - name: Validate version and check for native app build source
         shell: bash
         run: |
           set -euo pipefail
-          if [[ ! "$MORI_VERSION" =~ ^v?[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
-            echo "Version must be numeric, for example v0.2.9. Received: $MORI_VERSION" >&2
+          version="${MORI_VERSION_INPUT#v}"
+          if [[ ! "$version" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+            echo "Version must look like v0.2.9; got '$MORI_VERSION_INPUT'." >&2
+            exit 1
+          fi
+          echo "MORI_VERSION=$version" >> "$GITHUB_ENV"
+
+          build_script="desktop/${MORI_TARGET}/build-app.sh"
+          if [[ ! -f "$build_script" ]]; then
+            echo "Cannot build Mori for ${MORI_TARGET}: $build_script is missing." >&2
+            echo "Add a native macOS/Linux app build and place its output at '${{ matrix.payload }}'." >&2
+            echo "The current desktop app is WPF for Windows; this workflow will not repackage its .exe as a native installer." >&2
             exit 1
           fi
 
-          if [[ ! -f package.json ]]; then
-            echo "No root package.json was found. This repository currently contains Windows packaging sources only." >&2
-            echo "Mori's desktop app is WPF and targets net10.0-windows; it needs a macOS/Linux desktop port before native installers can be built." >&2
-            exit 1
-          fi
-
-          node -e '
-            const p = require("./package.json");
-            const key = `package:${process.env.MORI_TARGET}`;
-            if (!p.scripts || !p.scripts[key]) {
-              console.error(`Missing package.json script \"${key}\".`);
-              console.error("Add a native packaging script for the migrated macOS/Linux app before running this workflow.");
-              process.exit(1);
-            }
-          '
-
-      - name: Install project dependencies
-        run: npm ci
-
-      - name: Build native package
-        run: npm run "package:${{ matrix.target }}"
-
-      - name: Find generated installer artifacts
+      - name: Build native Mori app
         shell: bash
-        run: |
-          set -euo pipefail
-          mkdir -p artifacts
-          IFS=',' read -r -a extensions <<< "${{ matrix.extensions }}"
-          roots=(dist release src-tauri/target/release/bundle desktop/src-tauri/target/release/bundle target/release/bundle)
-          found=0
+        run: bash "desktop/${MORI_TARGET}/build-app.sh" "$MORI_VERSION" "${{ matrix.payload }}"
 
-          for root in "${roots[@]}"; do
-            [[ -d "$root" ]] || continue
-            for extension in "${extensions[@]}"; do
-              while IFS= read -r -d '' file; do
-                cp -- "$file" artifacts/
-                found=1
-              done < <(find "$root" -type f -iname "*.${extension}" -print0)
-            done
-          done
+      - name: Package native installer
+        shell: bash
+        run: bash "packaging/${MORI_TARGET}/package.sh" "$MORI_VERSION" "${{ matrix.payload }}" output/installers
 
-          if [[ "$found" -ne 1 ]]; then
-            echo "No native installer files were found in dist/, release/, or common Tauri bundle directories." >&2
-            exit 1
-          fi
-          ls -lh artifacts
-
-      - name: Upload native installer artifact
+      - name: Upload installer and checksum
         uses: actions/upload-artifact@v4
         with:
           name: Mori-${{ inputs.version }}-${{ matrix.target }}
-          path: artifacts/*
+          path: output/installers/*
           if-no-files-found: error
           retention-days: 30
