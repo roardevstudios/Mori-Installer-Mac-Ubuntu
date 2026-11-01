@@ -1,0 +1,115 @@
+name: Build Mori macOS and Linux packages
+
+run-name: Build Mori ${{ inputs.version }} for macOS and Ubuntu
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: Release version to label the artifacts
+        required: true
+        default: v0.2.9
+        type: string
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    name: Build ${{ matrix.label }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: macos-latest
+            target: mac
+            label: macOS
+            extensions: dmg,pkg,zip
+          - os: ubuntu-latest
+            target: linux
+            label: Ubuntu/Linux
+            extensions: deb,AppImage,rpm
+
+    runs-on: ${{ matrix.os }}
+    env:
+      MORI_VERSION: ${{ inputs.version }}
+      MORI_TARGET: ${{ matrix.target }}
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Install Linux packaging tools
+        if: runner.os == 'Linux'
+        run: |
+          sudo apt-get update
+          sudo apt-get install --yes build-essential file libfuse2
+
+      - name: Validate version and build configuration
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [[ ! "$MORI_VERSION" =~ ^v?[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+            echo "Version must be numeric, for example v0.2.9. Received: $MORI_VERSION" >&2
+            exit 1
+          fi
+
+          if [[ ! -f package.json ]]; then
+            echo "No root package.json was found. This repository currently contains Windows packaging sources only." >&2
+            echo "Mori's desktop app is WPF and targets net10.0-windows; it needs a macOS/Linux desktop port before native installers can be built." >&2
+            exit 1
+          fi
+
+          node -e '
+            const p = require("./package.json");
+            const key = `package:${process.env.MORI_TARGET}`;
+            if (!p.scripts || !p.scripts[key]) {
+              console.error(`Missing package.json script \"${key}\".`);
+              console.error("Add a native packaging script for the migrated macOS/Linux app before running this workflow.");
+              process.exit(1);
+            }
+          '
+
+      - name: Install project dependencies
+        run: npm ci
+
+      - name: Build native package
+        run: npm run "package:${{ matrix.target }}"
+
+      - name: Find generated installer artifacts
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p artifacts
+          IFS=',' read -r -a extensions <<< "${{ matrix.extensions }}"
+          roots=(dist release src-tauri/target/release/bundle desktop/src-tauri/target/release/bundle target/release/bundle)
+          found=0
+
+          for root in "${roots[@]}"; do
+            [[ -d "$root" ]] || continue
+            for extension in "${extensions[@]}"; do
+              while IFS= read -r -d '' file; do
+                cp -- "$file" artifacts/
+                found=1
+              done < <(find "$root" -type f -iname "*.${extension}" -print0)
+            done
+          done
+
+          if [[ "$found" -ne 1 ]]; then
+            echo "No native installer files were found in dist/, release/, or common Tauri bundle directories." >&2
+            exit 1
+          fi
+          ls -lh artifacts
+
+      - name: Upload native installer artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: Mori-${{ inputs.version }}-${{ matrix.target }}
+          path: artifacts/*
+          if-no-files-found: error
+          retention-days: 30
