@@ -58,11 +58,11 @@ jobs:
           echo "MORI_VERSION=$version" >> "$GITHUB_ENV"
 
       - name: Install build dependencies
-        run: npm ci --prefix "installer/${MORI_TARGET}"
+        run: npm ci --prefix "packaging/${MORI_TARGET}"
 
       - name: Build native installer
         shell: bash
-        run: bash "installer/${MORI_TARGET}/package.sh" "$MORI_VERSION"
+        run: bash "packaging/${MORI_TARGET}/package.sh" "$MORI_VERSION"
 
       - name: Verify package output
         shell: bash
