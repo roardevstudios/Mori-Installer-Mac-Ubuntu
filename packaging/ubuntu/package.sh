@@ -13,4 +13,4 @@ fi
 
 cd "$(dirname "$0")"
 ./node_modules/.bin/electron-builder --linux deb --x64 --config electron-builder.yml -c.extraMetadata.version="$version"
-sha256sum "../../output/installers/ubuntu/Mori-Web-v${version}-linux-x64.deb" > "../../output/installers/ubuntu/Mori-Web-v${version}-linux-x64.deb.sha256"
+sha256sum "../../output/installers/ubuntu/Mori-Web-v${version}-linux-amd64.deb" > "../../output/installers/ubuntu/Mori-Web-v${version}-linux-amd64.deb.sha256"
