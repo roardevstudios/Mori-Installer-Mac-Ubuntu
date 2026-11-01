@@ -1,0 +1,14 @@
+{
+  "name": "mori-web-desktop",
+  "version": "0.2.9",
+  "description": "Mori web app desktop wrapper for macOS",
+  "main": "main.cjs",
+  "private": true,
+  "scripts": {
+    "package": "electron-builder --mac dmg --universal --config electron-builder.yml"
+  },
+  "devDependencies": {
+    "electron": "45.2.1",
+    "electron-builder": "26.18.1"
+  }
+}

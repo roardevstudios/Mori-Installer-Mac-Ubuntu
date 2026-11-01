@@ -1,9 +1,10 @@
-# Mori Ubuntu/Linux packaging
+# Mori web desktop wrapper — Ubuntu/Linux
 
-`package.sh` creates a Debian `.deb` and SHA-256 sidecar from a **native Linux** app payload. It runs on Ubuntu/Debian and requires `dpkg-deb`.
+This folder packages the Mori Vercel website in a standalone Electron window. It creates an x64 Debian package and a SHA-256 sidecar:
 
 ```bash
-bash installer/ubuntu/package.sh 0.2.9 build/linux/AppDir output/installers
+npm ci
+bash package.sh 0.2.9
 ```
 
-The input directory must contain an executable `usr/bin/mori`. Mori's currently available desktop app is Windows WPF, so it cannot supply this Linux executable; a Linux app port/build is required first.
+The wrapper loads `https://mori-apis-ai.vercel.app/` and opens links to other sites in the system browser. It is a desktop shell for Mori Web; it does not include the Windows WPF desktop companion, overlays, or OS hotkeys.

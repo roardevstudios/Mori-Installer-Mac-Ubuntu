@@ -1,9 +1,10 @@
-# Mori macOS packaging
+# Mori web desktop wrapper — macOS
 
-`package.sh` creates a compressed `.dmg` and SHA-256 sidecar from a **native macOS** `Mori.app` bundle. It runs on macOS because it uses `hdiutil`.
+This folder packages the Mori Vercel website in a standalone Electron window. It creates a universal Intel/Apple Silicon DMG and a SHA-256 sidecar:
 
 ```bash
-bash installer/mac/package.sh 0.2.9 build/macos/Mori.app output/installers
+npm ci
+bash package.sh 0.2.9
 ```
 
-The app bundle must contain `Contents/Info.plist` and a macOS executable. Mori's currently available desktop app is Windows WPF, so it cannot supply this bundle; a macOS app port/build is required first.
+The wrapper loads `https://mori-apis-ai.vercel.app/` and opens links to other sites in the system browser. It is a desktop shell for Mori Web; it does not include the Windows WPF desktop companion, overlays, or OS hotkeys.

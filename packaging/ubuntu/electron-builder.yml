@@ -1,0 +1,20 @@
+appId: com.hive.mori.web
+productName: Mori
+directories:
+  output: ../../output/installers/ubuntu
+files:
+  - main.cjs
+linux:
+  category: Utility
+  target:
+    - deb
+  desktop:
+    Name: Mori
+    Comment: Mori web app desktop wrapper
+    Categories: Utility;
+artifactName: Mori-Web-v${version}-linux-${arch}.${ext}
+deb:
+  packageName: mori-web
+  priority: optional
+  depends:
+    - libgtk-3-0

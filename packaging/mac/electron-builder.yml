@@ -1,0 +1,16 @@
+appId: com.hive.mori.web
+productName: Mori
+directories:
+  output: ../../output/installers/mac
+files:
+  - main.cjs
+mac:
+  category: public.app-category.productivity
+  target:
+    - target: dmg
+      arch: universal
+artifactName: Mori-Web-v${version}-mac-universal.${ext}
+dmg:
+  window:
+    width: 560
+    height: 420

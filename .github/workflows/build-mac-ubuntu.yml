@@ -1,12 +1,12 @@
-name: Package Mori for macOS and Ubuntu
+name: Build Mori Web desktop installers
 
-run-name: Package Mori ${{ inputs.version }} for macOS and Ubuntu
+run-name: Build Mori Web ${{ inputs.version }} for macOS and Ubuntu
 
 on:
   workflow_dispatch:
     inputs:
       version:
-        description: Mori version to put in the package filenames
+        description: Installer version
         required: true
         default: v0.2.9
         type: string
@@ -15,22 +15,22 @@ permissions:
   contents: read
 
 jobs:
-  package:
-    name: Package ${{ matrix.platform }}
+  build:
+    name: Build ${{ matrix.platform }} installer
     strategy:
       fail-fast: false
       matrix:
         include:
           - os: macos-latest
-            platform: macOS
             target: mac
-            payload: build/macos/Mori.app
-            extension: dmg
+            platform: macOS
+            output: output/installers/mac/Mori-Web-${{ inputs.version }}-mac-universal.dmg
+            checksum: output/installers/mac/Mori-Web-${{ inputs.version }}-mac-universal.dmg.sha256
           - os: ubuntu-latest
-            platform: Ubuntu
             target: ubuntu
-            payload: build/linux/AppDir
-            extension: deb
+            platform: Ubuntu
+            output: output/installers/ubuntu/Mori-Web-${{ inputs.version }}-linux-x64.deb
+            checksum: output/installers/ubuntu/Mori-Web-${{ inputs.version }}-linux-x64.deb.sha256
 
     runs-on: ${{ matrix.os }}
     env:
@@ -41,11 +41,12 @@ jobs:
       - name: Check out repository
         uses: actions/checkout@v4
 
-      - name: Install Ubuntu package tools
-        if: runner.os == 'Linux'
-        run: sudo apt-get update && sudo apt-get install --yes dpkg-dev
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
 
-      - name: Validate version and check for native app build source
+      - name: Validate version
         shell: bash
         run: |
           set -euo pipefail
@@ -56,26 +57,33 @@ jobs:
           fi
           echo "MORI_VERSION=$version" >> "$GITHUB_ENV"
 
-          build_script="desktop/${MORI_TARGET}/build-app.sh"
-          if [[ ! -f "$build_script" ]]; then
-            echo "Cannot build Mori for ${MORI_TARGET}: $build_script is missing." >&2
-            echo "Add a native macOS/Linux app build and place its output at '${{ matrix.payload }}'." >&2
-            echo "The current desktop app is WPF for Windows; this workflow will not repackage its .exe as a native installer." >&2
+      - name: Install build dependencies
+        run: npm ci --prefix "installer/${MORI_TARGET}"
+
+      - name: Build native installer
+        shell: bash
+        run: bash "installer/${MORI_TARGET}/package.sh" "$MORI_VERSION"
+
+      - name: Verify package output
+        shell: bash
+        env:
+          PACKAGE_FILE: ${{ matrix.output }}
+          CHECKSUM_FILE: ${{ matrix.checksum }}
+        run: |
+          set -euo pipefail
+          if [[ ! -s "$PACKAGE_FILE" || ! -s "$CHECKSUM_FILE" ]]; then
+            echo "Expected installer or checksum is missing." >&2
+            find output/installers -maxdepth 3 -type f -print 2>/dev/null || true
             exit 1
           fi
+          ls -lh "$PACKAGE_FILE" "$CHECKSUM_FILE"
 
-      - name: Build native Mori app
-        shell: bash
-        run: bash "desktop/${MORI_TARGET}/build-app.sh" "$MORI_VERSION" "${{ matrix.payload }}"
-
-      - name: Package native installer
-        shell: bash
-        run: bash "packaging/${MORI_TARGET}/package.sh" "$MORI_VERSION" "${{ matrix.payload }}" output/installers
-
-      - name: Upload installer and checksum
+      - name: Upload installer
         uses: actions/upload-artifact@v4
         with:
-          name: Mori-${{ inputs.version }}-${{ matrix.target }}
-          path: output/installers/*
+          name: Mori-Web-${{ inputs.version }}-${{ matrix.target }}
+          path: |
+            ${{ matrix.output }}
+            ${{ matrix.checksum }}
           if-no-files-found: error
           retention-days: 30
