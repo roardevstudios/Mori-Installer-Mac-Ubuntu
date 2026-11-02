@@ -21,7 +21,7 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          - os: macos-latest
+          - os: macos-15-intel
             target: mac
             platform: macOS
             output: output/installers/mac/Mori-Web-${{ inputs.version }}-mac-universal.dmg
@@ -87,4 +87,5 @@ jobs:
             ${{ matrix.checksum }}
           if-no-files-found: error
           retention-days: 30
+
 
