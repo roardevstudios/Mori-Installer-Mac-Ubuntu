@@ -15,3 +15,5 @@ deb:
   maintainer: Mori Project <noreply@users.noreply.github.com>
   depends:
     - libgtk-3-0
+
+

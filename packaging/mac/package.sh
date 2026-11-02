@@ -1,9 +1,9 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-version="${1:-0.2.9}"
+version="${1:-0.3.0}"
 if [[ ! "$version" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
-  echo "Version must look like 0.2.9; got '$version'." >&2
+  echo "Version must look like 0.3.0; got '$version'." >&2
   exit 2
 fi
 if [[ "$(uname -s)" != "Darwin" ]]; then
@@ -14,3 +14,6 @@ fi
 cd "$(dirname "$0")"
 ./node_modules/.bin/electron-builder --mac dmg --universal --config electron-builder.yml -c.extraMetadata.version="$version"
 shasum -a 256 "../../output/installers/mac/Mori-Web-v${version}-mac-universal.dmg" > "../../output/installers/mac/Mori-Web-v${version}-mac-universal.dmg.sha256"
+
+
+
